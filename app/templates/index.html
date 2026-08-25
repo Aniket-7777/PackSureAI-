@@ -1,0 +1,296 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SIH26034 - Legal Metrology Compliance Inspector</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        .canvas-container {
+            position: relative;
+            max-width: 100%;
+            overflow: hidden;
+        }
+    </style>
+</head>
+<body class="bg-slate-900 text-slate-100 min-h-screen font-sans">
+
+    <!-- Navbar -->
+    <header class="border-b border-slate-800 bg-slate-950/70 backdrop-blur sticky top-0 z-50">
+        <div class="max-w-7xl mx-auto px-6 py-4 flex items-center justify-between">
+            <div class="flex items-center gap-3">
+                <div class="bg-indigo-600 text-white p-2.5 rounded-xl shadow-lg shadow-indigo-500/30">
+                    <i class="fa-solid fa-scale-balanced text-xl"></i>
+                </div>
+                <div>
+                    <h1 class="font-bold text-lg leading-tight text-white">LMPC Compliance Scanner</h1>
+                    <p class="text-xs text-slate-400">Legal Metrology (Packaged Commodities) Rules, 2011</p>
+                </div>
+            </div>
+            <div class="flex items-center gap-3">
+                <span class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-medium bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
+                    <span class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span> Engine Active
+                </span>
+            </div>
+        </div>
+    </header>
+
+    <!-- Main Content Area -->
+    <main class="max-w-7xl mx-auto px-6 py-8 grid grid-cols-1 lg:grid-cols-12 gap-8">
+        
+        <!-- Left Panel: Uploader & Canvas Preview (7 cols) -->
+        <div class="lg:col-span-7 space-y-6">
+            
+            <!-- Upload Box -->
+            <div class="bg-slate-800/60 border border-slate-700/60 rounded-2xl p-6 shadow-xl">
+                <h2 class="text-sm font-semibold uppercase tracking-wider text-slate-400 mb-4 flex items-center gap-2">
+                    <i class="fa-solid fa-camera"></i> Package Scan Input
+                </h2>
+
+                <form id="uploadForm" class="space-y-4">
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-3">
+                        <div>
+                            <label class="text-xs text-slate-400">Commodity Name</label>
+                            <input type="text" id="commodityName" value="Namkeen Snack" class="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:border-indigo-500">
+                        </div>
+                        <div>
+                            <label class="text-xs text-slate-400">Brand Name</label>
+                            <input type="text" id="brandName" value="Gopal Snacks" class="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:border-indigo-500">
+                        </div>
+                        <div>
+                            <label class="text-xs text-slate-400">Category</label>
+                            <select id="category" class="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:border-indigo-500">
+                                <option value="FOOD">FOOD</option>
+                                <option value="COSMETIC">COSMETIC</option>
+                                <option value="ELECTRONIC">ELECTRONIC</option>
+                                <option value="GENERAL_GOODS">GENERAL_GOODS</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <div id="dropZone" class="border-2 border-dashed border-slate-700 hover:border-indigo-500 rounded-xl p-6 text-center cursor-pointer transition bg-slate-900/40">
+                        <input type="file" id="imageInput" class="hidden" accept="image/*">
+                        <i class="fa-solid fa-cloud-arrow-up text-3xl text-slate-500 mb-2"></i>
+                        <p class="text-sm font-medium text-slate-300">Click or Drag & Drop package label image</p>
+                        <p class="text-xs text-slate-500 mt-1">Supports JPG, PNG, WEBP</p>
+                    </div>
+
+                    <button type="submit" id="submitBtn" class="w-full bg-indigo-600 hover:bg-indigo-500 font-semibold py-2.5 rounded-xl shadow-lg shadow-indigo-600/30 transition flex items-center justify-center gap-2">
+                        <i class="fa-solid fa-microchip"></i> Run AI Compliance Scan
+                    </button>
+                </form>
+            </div>
+
+            <!-- Image Inspection Canvas -->
+            <div class="bg-slate-800/60 border border-slate-700/60 rounded-2xl p-6 shadow-xl">
+                <div class="flex items-center justify-between mb-4">
+                    <h2 class="text-sm font-semibold uppercase tracking-wider text-slate-400 flex items-center gap-2">
+                        <i class="fa-solid fa-eye"></i> Spatial Bounding Box Canvas
+                    </h2>
+                    <span id="timingBadge" class="text-xs font-mono text-slate-400 bg-slate-900 px-2.5 py-1 rounded-md border border-slate-700">Ready</span>
+                </div>
+
+                <div class="canvas-container bg-slate-950 rounded-xl border border-slate-800 flex items-center justify-center min-h-[380px]">
+                    <canvas id="inspectionCanvas" class="max-w-full rounded-lg"></canvas>
+                    <p id="canvasPlaceholder" class="text-slate-600 text-sm">Upload an image above to inspect bounding coordinates</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Right Panel: Compliance Verdict & Violations (5 cols) -->
+        <div class="lg:col-span-5 space-y-6">
+
+            <!-- Verdict Card -->
+            <div id="verdictCard" class="bg-slate-800/60 border border-slate-700/60 rounded-2xl p-6 shadow-xl text-center relative overflow-hidden">
+                <div class="text-xs uppercase font-semibold text-slate-400 tracking-wider">Overall Compliance Verdict</div>
+                <div id="verdictBadge" class="mt-3 inline-block text-3xl font-extrabold px-6 py-2 rounded-2xl bg-slate-700 text-slate-300">
+                    AWAITING SCAN
+                </div>
+                <div id="verdictSub" class="text-xs text-slate-400 mt-2">No active package analyzed yet.</div>
+            </div>
+
+            <!-- Extracted Declarations -->
+            <div class="bg-slate-800/60 border border-slate-700/60 rounded-2xl p-6 shadow-xl">
+                <h3 class="text-sm font-semibold uppercase tracking-wider text-slate-400 mb-4 flex items-center gap-2">
+                    <i class="fa-solid fa-list-check"></i> Extracted Declarations (Rule 6)
+                </h3>
+                <div id="declarationsList" class="space-y-2.5 max-h-[220px] overflow-y-auto pr-1 text-xs">
+                    <div class="text-slate-500 italic">No declarations parsed yet.</div>
+                </div>
+            </div>
+
+            <!-- Violations Alert Panel -->
+            <div class="bg-slate-800/60 border border-slate-700/60 rounded-2xl p-6 shadow-xl">
+                <h3 class="text-sm font-semibold uppercase tracking-wider text-rose-400 mb-4 flex items-center gap-2">
+                    <i class="fa-solid fa-triangle-exclamation"></i> Statutory Violations Flagged
+                </h3>
+                <div id="violationsList" class="space-y-3 max-h-[240px] overflow-y-auto pr-1 text-xs">
+                    <div class="text-slate-500 italic">No violations detected.</div>
+                </div>
+            </div>
+
+        </div>
+    </main>
+
+    <!-- Client-side Inspection Script -->
+    <script>
+        const dropZone = document.getElementById('dropZone');
+        const imageInput = document.getElementById('imageInput');
+        const uploadForm = document.getElementById('uploadForm');
+        const canvas = document.getElementById('inspectionCanvas');
+        const ctx = canvas.getContext('2d');
+        const canvasPlaceholder = document.getElementById('canvasPlaceholder');
+        const submitBtn = document.getElementById('submitBtn');
+
+        let selectedFile = null;
+
+        // Dropzone interactions
+        dropZone.addEventListener('click', () => imageInput.click());
+        imageInput.addEventListener('change', (e) => {
+            if (e.target.files.length) handleFile(e.target.files[0]);
+        });
+        dropZone.addEventListener('dragover', (e) => { e.preventDefault(); dropZone.classList.add('border-indigo-500'); });
+        dropZone.addEventListener('dragleave', () => dropZone.classList.remove('border-indigo-500'));
+        dropZone.addEventListener('drop', (e) => {
+            e.preventDefault();
+            dropZone.classList.remove('border-indigo-500');
+            if (e.dataTransfer.files.length) handleFile(e.dataTransfer.files[0]);
+        });
+
+        function handleFile(file) {
+            selectedFile = file;
+            dropZone.querySelector('p').innerText = `Selected: ${file.name}`;
+            
+            const reader = new FileReader();
+            reader.onload = (e) => {
+                const img = new Image();
+                img.onload = () => {
+                    canvas.width = img.naturalWidth;
+                    canvas.height = img.naturalHeight;
+                    ctx.drawImage(img, 0, 0);
+                    canvasPlaceholder.style.display = 'none';
+                    canvas.style.display = 'block';
+                };
+                img.src = e.target.result;
+            };
+            reader.readAsDataURL(file);
+        }
+
+        // Handle Submission
+        uploadForm.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            if (!selectedFile) {
+                alert('Please select a package image first!');
+                return;
+            }
+
+            submitBtn.disabled = true;
+            submitBtn.innerHTML = `<i class="fa-solid fa-spinner animate-spin"></i> Processing OCR & Metrology Rules...`;
+
+            const formData = new FormData();
+            formData.append('file', selectedFile);
+            formData.append('commodity_name', document.getElementById('commodityName').value);
+            formData.append('brand_name', document.getElementById('brandName').value);
+            formData.append('category', document.getElementById('category').value);
+            formData.append('side', 'BACK');
+
+            try {
+                const res = await fetch('/api/v1/scan/inspect', {
+                    method: 'POST',
+                    body: formData
+                });
+                const data = await res.json();
+
+                if (res.ok) {
+                    renderResults(data);
+                } else {
+                    alert(`Scan failed: ${data.detail || 'Internal error'}`);
+                }
+            } catch (err) {
+                alert(`Error connecting to server: ${err.message}`);
+            } finally {
+                submitBtn.disabled = false;
+                submitBtn.innerHTML = `<i class="fa-solid fa-microchip"></i> Run AI Compliance Scan`;
+            }
+        });
+
+        function renderResults(data) {
+            // Update Timing
+            document.getElementById('timingBadge').innerText = `Scan Time: ${data.processing_time_ms} ms`;
+
+            // Update Verdict Card
+            const verdictBadge = document.getElementById('verdictBadge');
+            const verdictSub = document.getElementById('verdictSub');
+            if (data.overall_verdict === 'PASS') {
+                verdictBadge.className = "mt-3 inline-block text-3xl font-extrabold px-6 py-2 rounded-2xl bg-emerald-500/20 text-emerald-400 border border-emerald-500/30";
+                verdictBadge.innerText = "COMPLIANT (PASS)";
+                verdictSub.innerText = "Package satisfies mandatory Legal Metrology declaration norms.";
+            } else {
+                verdictBadge.className = "mt-3 inline-block text-3xl font-extrabold px-6 py-2 rounded-2xl bg-rose-500/20 text-rose-400 border border-rose-500/30";
+                verdictBadge.innerText = `NON-COMPLIANT (${data.total_violations} Violations)`;
+                verdictSub.innerText = "Missing or invalid statutory declarations detected.";
+            }
+
+            // Populate Declarations
+            const decContainer = document.getElementById('declarationsList');
+            decContainer.innerHTML = '';
+            for (const [key, val] of Object.entries(data.extracted_declarations)) {
+                decContainer.innerHTML += `
+                    <div class="bg-slate-900/80 p-2.5 rounded-lg border border-slate-700/60 flex items-center justify-between">
+                        <div>
+                            <span class="font-semibold text-slate-300">${key.replace(/_/g, ' ')}:</span>
+                            <span class="text-slate-400 ml-1 font-mono">${val.value || 'N/A'}</span>
+                        </div>
+                        <span class="px-2 py-0.5 rounded text-[10px] font-bold ${val.value ? 'bg-emerald-500/20 text-emerald-400' : 'bg-rose-500/20 text-rose-400'}">
+                            ${Math.round(val.confidence * 100)}%
+                        </span>
+                    </div>
+                `;
+            }
+
+            // Populate Violations
+            const vioContainer = document.getElementById('violationsList');
+            vioContainer.innerHTML = '';
+            if (data.violations.length === 0) {
+                vioContainer.innerHTML = `<div class="text-emerald-400">All mandatory rules validated successfully.</div>`;
+            } else {
+                data.violations.forEach(v => {
+                    vioContainer.innerHTML += `
+                        <div class="bg-rose-950/40 border border-rose-800/40 p-3 rounded-lg space-y-1">
+                            <div class="flex items-center justify-between">
+                                <span class="font-bold text-rose-300 font-mono">${v.rule_code}</span>
+                                <span class="px-1.5 py-0.5 rounded bg-rose-500/30 text-rose-300 font-bold text-[10px]">${v.severity}</span>
+                            </div>
+                            <p class="text-slate-300 text-xs">${v.explanation}</p>
+                            ${v.expected_format ? `<p class="text-[10px] font-mono text-slate-400">Expected: ${v.expected_format}</p>` : ''}
+                        </div>
+                    `;
+                });
+            }
+
+            // Draw Bounding Boxes on Canvas
+            for (const [key, val] of Object.entries(data.extracted_declarations)) {
+                if (val.bounding_box) {
+                    const bb = val.bounding_box;
+                    ctx.strokeStyle = '#10B981'; // Green
+                    ctx.lineWidth = 4;
+                    const x = bb.top_left[0];
+                    const y = bb.top_left[1];
+                    const w = bb.top_right[0] - bb.top_left[0];
+                    const h = bb.bottom_left[1] - bb.top_left[1];
+                    ctx.strokeRect(x, y, w, h);
+                    
+                    // Box tag label
+                    ctx.fillStyle = '#10B981';
+                    ctx.fillRect(x, Math.max(0, y - 20), ctx.measureText(key).width + 10, 18);
+                    ctx.fillStyle = '#000000';
+                    ctx.font = 'bold 12px sans-serif';
+                    ctx.fillText(key, x + 4, Math.max(14, y - 6));
+                }
+            }
+        }
+    </script>
+</body>
+</html>
